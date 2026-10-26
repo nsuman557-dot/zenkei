@@ -21,11 +21,23 @@
 - [x] Preserve the opening section chooser at `/`, app/release page at `/app`, and the source's remaining `/busted` and not-found handling.
 
 ## Manus development integration
-- [x] Keep the original Vite `zenkaiApi` development middleware calling `server/handler.js` for `/api/*` and `/proxy` in Preview; do not rewrite the upstream provider or Cloudflare Pages function behavior as part of this baseline.
+- [x] Keep the original Vite `zenkaiApi` development middleware calling `server/handler.js` for `/api/*` and `/proxy` in Preview; do not rewrite the upstream provider or Cloudflare Pages function behavior.
 - [x] Add `public/manus-routes.json` containing the complete non-404 route set from `src/App.tsx`, including dynamic route patterns; verify the running site serves valid JSON at `/manus-routes.json` with HTTP 200.
 - [x] Pin the package manager and record lifecycle-script policy before the first install; install from the committed lockfile; register TypeScript post-edit diagnostics before application-code edits; and complete the repository build with `pnpm run build` (the source's `build` script type-checks and then runs Vite).
 - [x] Configure and start the Manus Preview service on the project's initialized runtime port only after the source and route manifest are ready; verify the application responds over HTTP.
+- [x] Configure the static build contract as `corepack pnpm install --frozen-lockfile && corepack pnpm run build` with output directory `dist`; the pinned command succeeds locally and `dist/index.html` exists.
 
-## Scope boundaries
-- [x] Do not push to or otherwise modify the supplied source GitHub repository, add unspecified product features, or publicly publish the site in this baseline. Preserve the Cloudflare Pages function files, but do not claim Manus production hosting is ready; a future production adaptation requires a separate user-approved scope.
-- [x] Keep provider/API dependencies and environment variables as documented by the repository. Do not request or embed user secrets for the baseline.
+## Live playback API and hybrid deployment
+- [ ] On `https://zenkai-lhw34qff.manus.space/watch/212888`, the page displayed “Media Playback Locked” and `GET https://zenkai-lhw34qff.manus.space/api/shield/challenge` returned HTTP 500. Provide a working production server path for `/api/*` and `/proxy` by adapting the existing shared `server/handler.js`, not by replacing provider behavior.
+- [x] Add a Node HTTP bridge that converts incoming requests to Web `Request` objects, calls the shared handler with server environment values, and streams Web `Response` bodies back to clients so media/proxy bodies are not buffered as whole files. Add unauthenticated `GET /healthz` returning a 2xx response, bind `0.0.0.0`, honor `PORT`, and default to port `3000`.
+- [x] Make the shared anime mapping module importable in Node and Vite/Cloudflare by using JSON import attributes supported by Node; retain the original Cloudflare Pages function wrappers.
+- [x] Match `.env.example`'s optional Shield contract: do not use a hard-coded `SHIELD_SECRET`; with the secret unset, rate limiting remains active, `/api/shield/challenge` returns `{ "off": true }`, and API/proxy requests are not blocked for lacking a token. If `SHIELD_SECRET` is later configured securely, keep the existing challenge, proof-of-work and HMAC verification path.
+- [x] Add a Node 22 `Dockerfile` that uses the pinned `pnpm@11.25.0`, committed lockfile and reviewed lifecycle policy for a build, then runs the production Node API entrypoint. Include the API source, ESM package metadata and required anime mapping in the runtime image; do not copy development credentials or build-time private values into the image.
+- [x] Enable Manus `features.server` only; keep the managed database disabled. Configure the container declaration for `Dockerfile` with health path `/healthz`. Keep static `build.command` and `build.outputDirectory` as specified above.
+- [x] Configure `/api/*`, `/proxy` and `/healthz` to the server, then use `/*` as the static SPA fallback route. Keep the existing page route manifest independent of these published request routes.
+- [x] Preserve Preview HTTP 200 for `/`, `/manus-routes.json` and `/api/app/release`; verify Node adapter health and Shield-off responses; and confirm the requested episode resolves successfully and its same-origin proxy returns an HLS playlist.
+- [ ] After the checkpoint-triggered automatic publish actually starts, confirm its successful result and that the live watch page no longer stays locked. Do not search for or poll the earlier publish that was blocked before deployment, and do not submit a duplicate publish request for this checkpoint.
+
+## Scope and credentials
+- [x] Do not push to or otherwise modify the supplied source GitHub repository; preserve the Cloudflare Pages files and use the Manus-managed canonical repository only.
+- [x] Do not enable the managed database, embed private values in source/Git/image/frontend, or ask the user to paste secrets into chat. No `SHIELD_SECRET` is required for the documented Shield-off mode.

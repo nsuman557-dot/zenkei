@@ -122,10 +122,11 @@ const categoryOf = (path) =>
  */
 export async function shield(request, env, path, json) {
   if (env?.IS_DEV) return null;
-  const secret = env?.SHIELD_SECRET || "zenkai-shield-v1-secret-2026";
+  const secret = env?.SHIELD_SECRET;
   if (path === "/api/shield/challenge" || path === "/api/shield/verify") {
     const retry = limited(clientIp(request), "shield");
     if (retry) return json({ error: "Too many requests", retryAfter: retry }, 429);
+    if (!secret) return json({ off: true }, 200, 60);
     if (path.endsWith("challenge")) return json(await challenge(request, secret, new URL(request.url)));
     if (request.method !== "POST") return json({ error: "Not available" }, 404);
     const out = await verify(await request.json().catch(() => null), request, secret);
@@ -136,6 +137,7 @@ export async function shield(request, env, path, json) {
   const cat = categoryOf(path);
   const retry = limited(clientIp(request), cat);
   if (retry) return json({ error: "Too many requests", retryAfter: retry }, 429);
+  if (!secret) return null;
 
   // Media (hls.js / <img>) and iframe embeds (/api/embed/*) can't send custom headers: they only get the rate limit. The Android app is let through the same way.
   const app = /Aniverse\/|Zenkai/i.test(request.headers.get("User-Agent") || "") || request.headers.has("X-Zenkai-Client");
